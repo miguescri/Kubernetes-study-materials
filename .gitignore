@@ -1,3 +1,7 @@
 .vagrant/
 *.box
 *.log
+
+ca_cert_hash
+kubeadm_token
+config

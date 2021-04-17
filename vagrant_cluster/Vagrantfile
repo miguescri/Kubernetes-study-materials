@@ -1,0 +1,49 @@
+MASTERIP = '192.168.1.90'
+MASTERDNS = 'm1'
+
+NODES = [
+  { hostname: MASTERDNS, type: "master", ip: MASTERIP, mem: 4000 },
+  { hostname: 'w1', type: "worker", ip: '192.168.1.93', mem: 2000 },
+  { hostname: 'w2', type: "worker", ip: '192.168.1.94', mem: 2000 },
+  #{ hostname: 'w3', type: "worker", ip: '192.168.1.95', mem: 2000 },
+]
+
+Vagrant.configure("2") do |config|
+    NODES.each do |node|
+        config.vm.define node[:hostname] do |nodeconfig|
+            nodeconfig.vm.box = 'kube-base'
+            nodeconfig.vm.hostname = node[:hostname]
+            
+            # Additional Network
+            nodeconfig.vm.network   :public_network,
+                                    bridge: "wlp2s0",
+                                    ip: node[:ip],
+                                    # virtualbox__intnet: true,
+                                    nic_type: "virtio"
+            
+            # Virtual hardware configuration
+            nodeconfig.vm.provider "virtualbox" do |v|
+                v.memory = node[:mem]
+                v.cpus = 2
+                v.default_nic_type = "virtio"
+                v.linked_clone = true
+                
+                nm = node[:hostname]
+                v.customize ["modifyvm", :id, "--name", nm]
+            end
+                
+            nodeconfig.vm.boot_timeout = 400
+            
+            nodeconfig.vm.provision "shell", 
+                path: 'provision.sh', 
+                args: [ node[:hostname], node[:ip], node[:type], MASTERIP, MASTERDNS ]
+            
+            if node[:type] == "master"
+              #nodeconfig.trigger.after :up do |trigger|
+               # trigger.run = \
+                #        {inline: "sh -c 'cp k3s.yaml /home/miguescri/.kube/config'"}
+              #end
+            end
+        end
+    end
+end
